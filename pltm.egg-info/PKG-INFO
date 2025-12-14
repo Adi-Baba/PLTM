@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: pltm
+Version: 1.0.0
+Summary: Polylogarithmic Long-Term Memory Pipeline
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: google-generativeai
+Dynamic: requires-dist
+Dynamic: summary

@@ -1,0 +1,2 @@
+[console_scripts]
+pltm-server = pltm.server:start
