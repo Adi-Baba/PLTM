@@ -1,6 +1,5 @@
 # Polylogarithmic Long-Term Memory (PLTM) SDK
 
-![PLTM Architecture](https://via.placeholder.com/800x200?text=PLTM+Infinite+Context+Memory)
 
 > **Version:** 1.0.0
 > **Architecture:** Hybrid (C Core / Python API)
@@ -72,10 +71,10 @@ print("Memory Summary:", output[-10:]) # View last 10 memory units
 
 ## Performance
 
-Benchmarks on standard context window ($N=2048$):
-*   **Throughput**: ~31.90 Million Tokens/sec
-*   **Latency**: ~0.06ms per context window
-*   **Speedup**: 14x faster than prototype implementations.
+*   **C-Core Throughput**: **~15.52 Million Tokens/sec**
+*   **Python API Throughput**: **~10.00 Million Tokens/sec**
+*   **Latency**: ~0.06ms (Core) / ~0.20ms (Python API) per context window
+*   **Speedup**: significantly faster than traditional attention.
 
 ---
 *Built by the Aditya*
