@@ -25,16 +25,8 @@ pip install git+https://github.com/Adi-Baba/PLTM.git
 
 ## Quick Start
 
-### 1. Start the Memory Server
 
-The SDK comes with a built-in FastAPI server to handle memory operations.
-
-```bash
-pltm-server
-```
-*Server will start on `http://0.0.0.0:8000`*
-
-### 2. Python API Usage
+### Python API Usage
 
 You can also use the engine directly in your Python scripts:
 
