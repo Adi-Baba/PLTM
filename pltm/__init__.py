@@ -3,6 +3,7 @@ import os
 import glob
 import sys
 import platform
+import numpy as np
 
 # 1. Load the DLL / Shared Object
 # Logic:
