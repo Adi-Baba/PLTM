@@ -95,6 +95,11 @@ The system is built as a high-performance hybrid:
     *   Zero-copy overhead during data transfer.
     *   Compatible with **PyTorch** and **NumPy** arrays.
 
+## ⚠️ Production Notes
+
+*   **Thread Safety**: The `PLTM_Engine` instance is **stateful** (it holds the FFT buffers). Do **not** share a single instance across multiple threads. Create one engine per thread.
+*   **Precision**: The core operates in `FP32` (Single Precision). Ensure your input is cast to `float32` before processing to avoid overhead.
+
 ---
 
 <div align="center">
