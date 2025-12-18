@@ -1,32 +1,50 @@
-
 import ctypes
 import os
-import numpy as np
+import glob
+import sys
 import platform
 
-# 1. Load the DLL
-# Determine extension (.dll for Windows, .so for Linux)
-# Determine extension (.dll for Windows, .so for Linux)
-ext = ".dll" if platform.system() == "Windows" else ".so"
+# 1. Load the DLL / Shared Object
+# Logic:
+# 1. Try to find the setuptools-compiled extension (polylog*.so/pyd) in the current package dir.
+# 2. Fallback to pre-compiled binaries if present (polylog.dll).
 
-# Search Paths:
-# 1. Dev Mode: ../core/polylog.dll
-# 2. Prod Mode (SDK): ../bin/polylog.dll
-# 3. Local Mode: ./polylog.dll
-possible_paths = [
-    os.path.join(os.path.dirname(__file__), "../core/polylog" + ext),
-    os.path.join(os.path.dirname(__file__), "../bin/polylog" + ext),
-    os.path.join(os.path.dirname(__file__), "polylog" + ext)
+curr_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Patterns to search for
+# Windows: .pyd (from setup.py) or .dll (pre-packaged)
+# Linux/Mac: .so (from setup.py or pre-packaged)
+patterns = [
+    "polylog*.pyd",
+    "polylog*.so",
+    "polylog.dll"
 ]
 
 dll_path = None
-for p in possible_paths:
-    if os.path.exists(p):
-        dll_path = os.path.abspath(p)
+
+for pat in patterns:
+    # Look in current directory (where pip installs it)
+    matches = glob.glob(os.path.join(curr_dir, pat))
+    if matches:
+        dll_path = matches[0] # Pick the first match
         break
 
+# Fallback Search Paths (Dev/Repo structure)
 if not dll_path:
-    raise FileNotFoundError(f"Could not find compiled core. Checked: {[os.path.abspath(p) for p in possible_paths]}")
+    possible_paths = [
+        os.path.join(curr_dir, "../core/polylog.dll"),
+        os.path.join(curr_dir, "../bin/polylog.dll"),
+        os.path.join(curr_dir, "polylog.dll")
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            dll_path = os.path.abspath(p)
+            break
+
+if not dll_path:
+    # Final check: Maybe it's installed as a system lib or in site-packages root?
+    # Unlikely for this package structure.
+    raise FileNotFoundError(f"Could not find compiled core (polylog). Checked in {curr_dir} with patterns {patterns}")
 
 lib = ctypes.CDLL(dll_path)
 

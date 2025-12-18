@@ -1,13 +1,28 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+import os
+
+# Define the C-Extension
+# This ensures pip compiles the code on Linux/Mac during install
+polylog_module = Extension(
+    'pltm.polylog',
+    sources=[
+        'core/polylog.c',
+        'core/kiss_fft/kiss_fft.c'
+    ],
+    include_dirs=['core/kiss_fft'],
+    # extra_compile_args=['-O3'] # Optional optimization
+)
 
 setup(
     name="pltm",
-    version="1.0.0",
+    version="1.1.0",
     description="Polylogarithmic Long-Term Memory Pipeline",
     packages=['pltm'],
+    # We include the extension module
+    ext_modules=[polylog_module],
     include_package_data=True,
     package_data={
-        'pltm': ['*.dll', '*.so'],
+        'pltm': ['*.dll', '*.so', '*.pyd'], # Include pre-built items if present
     },
     install_requires=[
         "numpy",
