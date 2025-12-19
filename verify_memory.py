@@ -6,43 +6,56 @@ def test_memory_retention_v2():
     context_size = 2048
     s = 0.5 # Singularity index
     
-    print(f"--- Testing PLTM Memory Retention V2 (Overlap-Add) (N={context_size}, s={s}) ---")
+    print(f"--- Testing PLTM Memory Retention V2 (N={context_size}, s={s}) ---")
     
-    # 1. Initialize Engine
-    engine = PLTM_Engine(context_size, s)
+    # 1. Initialize Engine (Normalized)
+    # gain=1.0 ensures stable energy
+    # damping=0.99 ensures eventual silence
+    engine = PLTM_Engine(context_size, s, gain=1.0, damping=0.99)
     
     # 2. Create Inputs
-    # Chunk 1: Impulse (Strong signal at valid indices)
+    # Chunk 1: Impulse (Strong signal at start)
     chunk1 = np.zeros(context_size, dtype=np.float32)
-    chunk1[0:100] = 1.0 # First 100 items are 1.0
+    chunk1[0:100] = 1.0 
     
-    # Chunk 2: Silence (All zeros)
-    chunk2 = np.zeros(context_size, dtype=np.float32)
+    # Chunk 2+: Silence
+    chunk_silence = np.zeros(context_size, dtype=np.float32)
     
     # 3. Process Sequence
     print("Processing Chunk 1 (Impulse)...")
     out1 = engine.process(chunk1)
     
-    print("Processing Chunk 2 (Silence)...")
-    out2 = engine.process(chunk2)
+    print("Processing 10 chunks of Silence (Observing Decay)...")
+    decay_curve = []
+    decay_curve.append(np.max(np.abs(out1)))
     
-    # 4. Analyze Results
-    norm1 = np.linalg.norm(out1)
-    norm2 = np.linalg.norm(out2)
-    
-    print(f"\n[Output 1] Norm: {norm1:.4f}")
-    print(f"[Output 2] Norm: {norm2:.4f}")
-    
-    if norm2 > 0.0001:
-        print("\n[SUCCESS] Memory DETECTED in Output 2.")
-        print("The engine retained information from Chunk 1 and influenced Chunk 2.")
-        print(f"Memory strength (Norm2/Norm1): {norm2/norm1:.4f}")
+    for i in range(10):
+        out = engine.process(chunk_silence)
+        max_val = np.max(np.abs(out))
+        decay_curve.append(max_val)
         
-        # Check first few elements of out2
-        print(f"First 10 elements of Output 2: {out2[:10]}")
+        # ASCII Bar plot
+        bar_len = int(max_val * 20)
+        bar = "#" * bar_len
+        print(f"  Chunk {i+2}: Max={max_val:.4f} |{bar}")
+        
+    # Analyze
+    start_val = decay_curve[1] # First tail
+    end_val = decay_curve[-1]
+    
+    if end_val < start_val:
+        print("\n[SUCCESS] Memory Decay CONFIRMED.")
+        print(f"Signal decayed from {start_val:.4f} to {end_val:.4f} over 10 chunks.")
     else:
-        print("\n[FAILURE] NO Memory detected in Output 2.")
-        print("Output 2 was effectively zero, meaning context was lost between chunks.")
+        print("\n[WARNING] Signal did not decay (or grew). Check normalization.")
+
+    # Reset Check
+    engine.reset()
+    out_reset = engine.process(chunk_silence)
+    if np.max(np.abs(out_reset)) < 1e-6:
+        print("[SUCCESS] Reset verified (Output is ~zero).")
+    else:
+        print(f"[FAILURE] Reset failed (Max={np.max(np.abs(out_reset))})")
 
 if __name__ == "__main__":
     test_memory_retention_v2()

@@ -15,7 +15,7 @@ polylog_module = Extension(
 
 setup(
     name="pltm",
-    version="1.1.0",
+    version="1.2.0",
     description="Polylogarithmic Long-Term Memory Pipeline",
     packages=['pltm'],
     # We include the extension module

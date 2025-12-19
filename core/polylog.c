@@ -11,6 +11,8 @@ struct PolylogContext {
     int N;
     int fft_size;
     float s;
+    float gain;    // Normalization gain
+    float damping; // Forgetting factor
     
     // KissFFT Configurations
     kiss_fft_cfg cfg_fwd;
@@ -47,6 +49,19 @@ void _compute_kernel(PolylogContext* ctx) {
         }
     }
 
+    // Normalization
+    float sum = 0.0f;
+    for (int i = 0; i < ctx->N; i++) {
+        sum += ctx->kernel[i].r;
+    }
+    
+    if (sum > 1e-9f) {
+        float scale = ctx->gain / sum;
+        for (int i = 0; i < ctx->N; i++) {
+            ctx->kernel[i].r *= scale;
+        }
+    }
+
     // 2. Transform Kernel to Frequency Domain
     // We use the 'freq_buffer' as temporary scratch space to hold the FFT result
     // Then copy it back to 'kernel' (or just compute inplace if possible, but safe is better)
@@ -64,13 +79,15 @@ void _compute_kernel(PolylogContext* ctx) {
     }
 }
 
-EXPORT PolylogHandle ply_create_context(int N, float s) {
+EXPORT PolylogHandle ply_create_context(int N, float s, float gain, float damping) {
     PolylogContext* ctx = (PolylogContext*)malloc(sizeof(PolylogContext));
     if (!ctx) return NULL;
 
     ctx->N = N;
     ctx->fft_size = 2 * N;
     ctx->s = s;
+    ctx->gain = gain;
+    ctx->damping = damping;
     
     // Allocate Plans (1 = Inverse, 0 = Forward)
     ctx->cfg_fwd = kiss_fft_alloc(ctx->fft_size, 0, NULL, NULL);
@@ -92,6 +109,12 @@ EXPORT PolylogHandle ply_create_context(int N, float s) {
     _compute_kernel(ctx);
     
     return (PolylogHandle)ctx;
+}
+
+EXPORT float* ply_get_overflow_buffer(PolylogHandle handle) {
+    PolylogContext* ctx = (PolylogContext*)handle;
+    if (!ctx) return NULL;
+    return ctx->overflow_buffer;
 }
 
 EXPORT void ply_process(PolylogHandle handle, const float* input, float* output) {
@@ -131,9 +154,12 @@ EXPORT void ply_process(PolylogHandle handle, const float* input, float* output)
     // 5. Overlap-Add & Output
     float scale = 1.0f / fft_size;
     
-    // 5. Overlap-Add & Output
-    // float scale = 1.0f / fft_size; // Already defined above
-    
+    // Apply damping to carried-over tail
+    // This is applied to the overflow from the PREVIOUS block before adding it to the current
+    for (int i = 0; i < N; i++) {
+        ctx->overflow_buffer[i] *= ctx->damping;
+    }
+
     for(int i=0; i<N; i++) {
         // Output = Current Conv Result (Part 1) + Previous Overflow
         float val = ctx->time_buffer[i].r * scale;

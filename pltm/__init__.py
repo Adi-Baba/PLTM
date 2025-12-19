@@ -53,8 +53,8 @@ lib = ctypes.CDLL(dll_path)
 class PolylogContext(ctypes.Structure):
     pass # Opaque pointer
 
-# PolylogContext* ply_create_context(int N, float s);
-lib.ply_create_context.argtypes = [ctypes.c_int, ctypes.c_float]
+# PolylogContext* ply_create_context(int N, float s, float gain, float damping);
+lib.ply_create_context.argtypes = [ctypes.c_int, ctypes.c_float, ctypes.c_float, ctypes.c_float]
 lib.ply_create_context.restype = ctypes.POINTER(PolylogContext)
 
 # void ply_process(PolylogContext* ctx, const float* input, float* output);
@@ -62,14 +62,21 @@ lib.ply_process.argtypes = [ctypes.POINTER(PolylogContext),
                            ctypes.POINTER(ctypes.c_float), 
                            ctypes.POINTER(ctypes.c_float)]
 
+# float* ply_get_overflow_buffer(PolylogContext* ctx);
+try:
+    lib.ply_get_overflow_buffer.argtypes = [ctypes.POINTER(PolylogContext)]
+    lib.ply_get_overflow_buffer.restype = ctypes.POINTER(ctypes.c_float)
+except AttributeError:
+    pass # Handle case where DLL is old during dev (though strict matching preferred)
+
 # void ply_destroy(PolylogContext* ctx);
 lib.ply_destroy.argtypes = [ctypes.POINTER(PolylogContext)]
 
 # 3. High-Level Python Wrapper
 class PLTM_Engine:
-    def __init__(self, context_size, s):
+    def __init__(self, context_size, s, gain=1.0, damping=1.0):
         self.N = context_size
-        self.ctx = lib.ply_create_context(context_size, s)
+        self.ctx = lib.ply_create_context(context_size, s, gain, damping)
         
     def process(self, input_array):
         # Ensure input is float32
@@ -93,6 +100,17 @@ class PLTM_Engine:
         lib.ply_process(self.ctx, in_ptr, out_ptr)
         
         return output_data
+
+    def reset(self):
+        """Clear internal overlap state for fresh processing."""
+        if not hasattr(self, 'ctx') or not self.ctx:
+            return
+        # Zero the overflow buffer (size N float)
+        # Using ply_get_overflow_buffer if available
+        if hasattr(lib, 'ply_get_overflow_buffer'):
+            overflow_ptr = lib.ply_get_overflow_buffer(self.ctx)
+            if overflow_ptr:
+                ctypes.memset(overflow_ptr, 0, self.N * ctypes.sizeof(ctypes.c_float))
         
     def __del__(self):
         if hasattr(self, 'ctx') and self.ctx:

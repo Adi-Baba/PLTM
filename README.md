@@ -3,7 +3,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue.svg?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-win--x64%20%7C%20linux--x64-lightgrey.svg?style=flat-square)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square)
@@ -22,11 +22,13 @@
 
 By using an **Overlap-Add FFT convolution engine**, PLTM processes streams continuously without hard context boundaries. Information from previous windows decays smoothly according to a causal power-law kernel, rather than being abruptly truncated.
 
-### 🌟 Key Features (v1.1)
+### 🌟 Key Features (v1.2)
 
 *   **⚡ Blazing Fast**: Process **~8.7 Million Tokens/sec** on standard CPUs.
 *   **♾️ Unbounded Streaming Context**: Implements an **Overlap-Add** engine that carries signal "tails" across context windows, enabling continuous streaming without state resets.
-*   **🧠 Causal Kernel**: Built on a causal power-law kernel of the form $h[t] \propto t^{-s}$. This kernel provides long-range temporal influence with mathematically controlled decay, ensuring stability and determinism.
+*   **⚖️ Normalized Kernel**: Automatically normalizes the power-law kernel to ensure bounded output energy, preventing signal explosion even with infinite streams.
+*   **📉 Controllable Decay**: Fine-tune retention with `gain` and `damping` parameters for "natural forgetting" dynamics.
+*   **🧠 Causal Kernel**: Built on a causal power-law kernel of the form $h[t] \propto t^{-s}$. This kernel provides long-range temporal influence with mathematically controlled decay.
 *   **🛡️ Robust Design**: Hybrid architecture (C++ Core + Python Bindings) with strict memory safety checks and zero-copy operations.
 
 ---
@@ -51,7 +53,8 @@ PLTM **does not**:
 
 PLTM has been empirically verified to:
 - **Preserve State**: Correctly carries signal tails across consecutive streaming calls.
-- **Micro-Benchmark**: Verified deterministic output for impulse and constant inputs.
+- **Boundedness**: Normalized kernel ensures outputs remain within stable ranges for constant inputs.
+- **Determinism**: New `reset()` method ensures identical runs for identical inputs.
 - **Scale Sub-Quadratically**: Throughput remains stable as sequence length increases (latency $\propto N \log N$).
 - **Numerical Stability**: Operates reliably in FP32 with bounded output norms.
 
@@ -59,7 +62,7 @@ PLTM has been empirically verified to:
 
 ## 📊 Performance Benchmarks
 
-| Metric | PLTM (v1.1) | Traditional Attention (CPU) |
+| Metric | PLTM (v1.2) | Traditional Attention (CPU) |
 | :--- | :--- | :--- |
 | **Complexity** | **$O(N \log N)$** | $O(N^2)$ |
 | **Throughput** | **~8.72 M Tokens/s** | ~0.05 M Tokens/s |
@@ -92,8 +95,11 @@ Integrate unbounded memory into your pipeline in just 3 lines of code:
 import numpy as np
 from pltm import PLTM_Engine
 
-# 1. Initialize Engine (Context Size = 2048, Singularity Index s = 0.5)
-engine = PLTM_Engine(context_size=2048, s=0.5)
+# 1. Initialize Engine 
+# context_size=2048, s=0.5
+# gain=1.0 scales kernel to sum to 1.0 (bounded energy)
+# damping=0.99 adds slight decay to infinite tails
+engine = PLTM_Engine(context_size=2048, s=0.5, gain=1.0, damping=0.99)
 
 # 2. Generate Data Stream (e.g., embeddings or raw signals)
 stream_chunk = np.random.rand(2048).astype(np.float32)
@@ -103,6 +109,10 @@ stream_chunk = np.random.rand(2048).astype(np.float32)
 output = engine.process(stream_chunk)
 
 print(f"Processed {len(output)} tokens. Memory State Active.")
+
+# 4. Reset Memory (if needed)
+# Clears the internal overlap buffer for a fresh start
+engine.reset()
 ```
 
 ---

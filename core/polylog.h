@@ -14,14 +14,17 @@ extern "C" {
 // --- C API (Bindings) ---
 typedef void* PolylogHandle;
 
-// Create a context for signal length N with singularity index s
-EXPORT PolylogHandle ply_create_context(int N, float s);
+// Create a context for signal length N with singularity index s, gain, and damping
+EXPORT PolylogHandle ply_create_context(int N, float s, float gain, float damping);
 
 // Process a signal input -> output (buffers must be size N)
 EXPORT void ply_process(PolylogHandle ctx, const float* input, float* output);
 
 // Update parameter s on the fly (Online Learning support)
 EXPORT void ply_update_s(PolylogHandle ctx, float s);
+
+// Get direct access to overflow buffer (for resetting/inspection)
+EXPORT float* ply_get_overflow_buffer(PolylogHandle ctx);
 
 // Free memory
 EXPORT void ply_destroy(PolylogHandle ctx);
